@@ -1,0 +1,109 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# This file is part of the distrobox project:
+#    https://github.com/89luca89/distrobox
+#
+# Copyright (C) 2022 distrobox contributors
+#
+# distrobox is free software; you can redistribute it and/or modify it
+# under the terms of the GNU General Public License version 3
+# as published by the Free Software Foundation.
+#
+# distrobox is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with distrobox; if not, see <http://www.gnu.org/licenses/>.
+
+trap '[ "$?" -ne 0 ] && printf "\nAn error occurred\n"' EXIT
+
+# Defaults
+distrobox_host_exec_default_command="/bin/sh"
+
+verbose=0
+version="1.2.16"
+
+# Print usage to stdout.
+# Arguments:
+#   None
+# Outputs:
+#   print usage with examples.
+show_help() {
+	cat << EOF
+distrobox version: ${version}
+
+Usage:
+
+	distrobox-host-exec [command [arguments]]
+	distrobox-host-exec ls
+	distrobox-host-exec bash -l
+	distrobox-host-exec flatpak run org.mozilla.firefox
+	distrobox-host-exec podman ps -a
+
+
+Options:
+
+	--help/-h:		show this message
+	--verbose/-v:		show more verbosity
+	--version/-V:		show version
+EOF
+}
+
+# Parse arguments
+while :; do
+	case $1 in
+		-h | --help)
+			# Call a "show_help" function to display a synopsis, then exit.
+			show_help
+			exit 0
+			;;
+		-v | --verbose)
+			verbose=1
+			shift
+			;;
+		-V | --version)
+			printf "distrobox: %s\n" "${version}"
+			exit 0
+			;;
+		--) # End of all options.
+			shift
+			;;
+		-*) # Invalid options.
+			printf >&2 "ERROR: Invalid flag '%s'\n\n" "$1"
+			show_help
+			exit 1
+			;;
+		*)
+			command=${distrobox_host_exec_default_command}
+			if [ -n "$1" ]; then
+				command=$1
+				shift
+			fi
+			break
+			;;
+	esac
+done
+
+set -o errexit
+set -o nounset
+# set verbosity
+if [ "${verbose}" -ne 0 ]; then
+	set -o xtrace
+fi
+
+if ! command -v flatpak-spawn; then
+	printf "Warning: flatpak-spawn not found! We recommend installing it.\n"
+	printf "In the meantime, we'll try an alternative (but less powerfull) approach\n"
+
+	result_command="sudo -E chroot --userspec=$(id -u):$(id -g) /run/host/ /usr/bin/env "
+	for i in $(printenv | grep "=" | grep -Ev ' |"' | grep -Ev "^(_)"); do
+		result_command="${result_command} ${i}"
+	done
+
+	exec ${result_command} sh -c " cd ${PWD} && ${command} $*"
+else
+	flatpak-spawn --host "${command}" "$@"
+fi
