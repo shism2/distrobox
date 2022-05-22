@@ -288,6 +288,8 @@ if ! command -v find || ! command -v mount || ! command -v passwd ||
 			procps \
 			sudo \
 			wget \
+			git \
+            figlet \
 			util-linux
 
 	elif command -v dnf; then
@@ -399,6 +401,10 @@ if ! command -v find || ! command -v mount || ! command -v passwd ||
 			sudo \
 			util-linux \
 			wget \
+			figlet \
+			lolcat \
+			git \
+			neovim \
 			vte-common
 
 	elif command -v slackpkg; then
